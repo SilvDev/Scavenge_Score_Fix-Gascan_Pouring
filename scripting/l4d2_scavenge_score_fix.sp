@@ -1,6 +1,6 @@
 /*
 *	Scavenge Score Fix - Gascan Pouring
-*	Copyright (C) 2021 Silvers
+*	Copyright (C) 2022 Silvers
 *
 *	This program is free software: you can redistribute it and/or modify
 *	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION 		"2.4"
+#define PLUGIN_VERSION 		"2.5"
 
 /*=======================================================================================
 	Plugin Info:
@@ -31,6 +31,12 @@
 
 ========================================================================================
 	Change Log:
+
+1.5 (11-Dec-2022)
+	- Changes to fix compile warnings on SourceMod 1.11.
+
+2.4a (19-Oct-2021)
+	- Wildcarded the .txt GameData signature for compatibility with "Left4DHooks" plugin version 1.64+.
 
 2.4 (07-Oct-2021)
 	- Fixed not detecting Scavenge gascans the game respawns. Thanks to "a2121858" for reporting.
@@ -163,7 +169,7 @@ public void OnPluginStart()
 	}
 }
 
-public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	g_fCvarRespawn = g_hCvarRespawn.FloatValue;
 	if( g_fCvarRespawn )
@@ -177,7 +183,7 @@ public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char
 // ====================================================================================================
 // DETOUR
 // ====================================================================================================
-public MRESReturn OnActionComplete(int pThis, Handle hReturn, Handle hParams)
+MRESReturn OnActionComplete(int pThis, Handle hReturn, Handle hParams)
 {
 	int entity = DHookGetParam(hParams, 2);
 	entity = EntIndexToEntRef(entity);
@@ -255,27 +261,27 @@ public void OnMapEnd()
 	g_iPlayerSpawn = 0;
 }
 
-public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	g_iRoundStart = 0;
 	g_iPlayerSpawn = 0;
 }
 
-public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
+void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
 		CreateTimer(5.0, TimerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iRoundStart = 1;
 }
 
-public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
 		CreateTimer(5.0, TimerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iPlayerSpawn = 1;
 }
 
-public Action TimerStart(Handle timer)
+Action TimerStart(Handle timer)
 {
 	FindPropUseTarget();
 
@@ -283,6 +289,8 @@ public Action TimerStart(Handle timer)
 	{
 		FindScavengeGas();
 	}
+
+	return Plugin_Continue;
 }
 
 void FindPropUseTarget()
@@ -319,7 +327,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 }
 
 // Delay before finding matching spawner. Next frame required for getting vPos, but too early because the gascan takes time to fall into position so it would be near enough to spawner
-public Action DelayedSpawn(Handle timer, int entity)
+Action DelayedSpawn(Handle timer, int entity)
 {
 	entity = EntRefToEntIndex(entity);
 
@@ -327,9 +335,11 @@ public Action DelayedSpawn(Handle timer, int entity)
 	{
 		FindScavengeGas(entity);
 	}
+
+	return Plugin_Continue;
 }
 
-public Action TimerRespawn(Handle timer, any entity)
+Action TimerRespawn(Handle timer, any entity)
 {
 	entity = EntRefToEntIndex(entity);
 
@@ -347,6 +357,8 @@ public Action TimerRespawn(Handle timer, any entity)
 		AcceptEntityInput(entity, "SpawnItem");
 		// g_bWatchSpawn = false;
 	}
+
+	return Plugin_Continue;
 }
 
 void FindScavengeGas(int target = 0)
@@ -371,6 +383,7 @@ void FindScavengeGas(int target = 0)
 	{
 		GetEntPropVector(target, Prop_Send, "m_vecOrigin", vVec);
 	}
+
 	while( (entity = FindEntityByClassname(entity, "weapon_scavenge_item_spawn")) != INVALID_ENT_REFERENCE )
 	{
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
@@ -501,7 +514,7 @@ public void OnMapEnd()
 	g_iPlayerSpawn = 0;
 }
 
-public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	for( int i = 1; i <= MaxClients; i++ )
 		g_iPouring[i] = 0;
@@ -509,14 +522,14 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 	g_iPlayerSpawn = 0;
 }
 
-public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
+void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
 		FindPropUseTarget();
 	g_iRoundStart = 1;
 }
 
-public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
 		FindPropUseTarget();
@@ -543,7 +556,7 @@ void FindPropUseTarget()
 	}
 }
 
-public void OnUseStarted(const char[] output, int caller, int activator, float delay)
+void OnUseStarted(const char[] output, int caller, int activator, float delay)
 {
 	int weapon = GetEntPropEnt(caller, Prop_Send, "m_useActionOwner");
 	if( weapon > 0 && IsValidEntity(weapon) )
@@ -554,7 +567,7 @@ public void OnUseStarted(const char[] output, int caller, int activator, float d
 	}
 }
 
-public void OnUseCancelled(const char[] output, int caller, int activator, float delay)
+void OnUseCancelled(const char[] output, int caller, int activator, float delay)
 {
 	caller = EntIndexToEntRef(caller);
 
@@ -568,7 +581,7 @@ public void OnUseCancelled(const char[] output, int caller, int activator, float
 	}
 }
 
-public Action Event_PourGasDone(Event event, const char[] name, bool dontBroadcast)
+Action Event_PourGasDone(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iCountNozzles == 0 )
 	{
